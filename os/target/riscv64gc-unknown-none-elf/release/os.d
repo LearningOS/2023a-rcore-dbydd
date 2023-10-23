@@ -1,0 +1,1 @@
+/ch1/os/target/riscv64gc-unknown-none-elf/release/os: /ch1/os/src/boards/qemu.rs /ch1/os/src/console.rs /ch1/os/src/entry.asm /ch1/os/src/lang_items.rs /ch1/os/src/logging.rs /ch1/os/src/main.rs /ch1/os/src/sbi.rs
