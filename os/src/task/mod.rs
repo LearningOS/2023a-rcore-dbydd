@@ -14,14 +14,16 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_ms;
 use lazy_static::*;
-use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
+
+use self::switch::__switch;
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -53,6 +55,8 @@ lazy_static! {
         let num_app = get_num_app();
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
+            init_time : get_time_ms(),
+            call_count: [0;MAX_SYSCALL_NUM],
             task_status: TaskStatus::UnInit,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
@@ -156,6 +160,12 @@ fn mark_current_suspended() {
 /// Change the status of current `Running` task into `Exited`.
 fn mark_current_exited() {
     TASK_MANAGER.mark_current_exited();
+}
+
+/// return current task control block in use, yeah it's silly
+pub fn get_current_task_info() -> TaskControlBlock {
+    let exclusive_access = &TASK_MANAGER.inner.exclusive_access();
+    exclusive_access.tasks[exclusive_access.current_task]
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.
