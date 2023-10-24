@@ -14,10 +14,4 @@
     "settings": {
         "terminal.integrated.shell.linux": "/bin/bash"
     },
-    // Use 'appPort' to create a container with published ports. If the port isn't working, be sure
-    // your server accepts connections from all interfaces (0.0.0.0 or '*'), not just localhost.
-    // "appPort": [],
-    // Uncomment the next line to run commands after the container is created.
-    // "postCreateCommand": "gcc -v",
-    // Comment out the next line if you want to run as root instead
 }
