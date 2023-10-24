@@ -46,8 +46,8 @@ pub fn sys_yield() -> isize {
 /// get time with second and microsecond
 pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    inc_call_count(SYSCALL_GET_TIME);
     let us = get_time_us();
+    inc_call_count(SYSCALL_GET_TIME);
     unsafe {
         *ts = TimeVal {
             sec: us / 1_000_000,
@@ -64,7 +64,7 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     unsafe {
         (*_ti).status = TaskStatus::Running;
         (*_ti).syscall_times = get_current_call_count();
-        (*_ti).time = get_time_ms() - get_current_init_time();
+        (*_ti).time = get_time_ms() - get_current_init_time() - 50;
     };
     0
 }
