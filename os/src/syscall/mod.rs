@@ -24,36 +24,18 @@ const SYSCALL_TASK_INFO: usize = 410;
 mod fs;
 mod process;
 
-use core::borrow::BorrowMut;
-
 use fs::*;
 use process::*;
 
-use crate::task::get_current_task_info;
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
-    let mut current_task_info = get_current_task_info();
-    match syscall_id {
-        SYSCALL_WRITE => {
-            current_task_info.borrow_mut().call_count[SYSCALL_WRITE] += 1;
-            sys_write(args[0], args[1] as *const u8, args[2])
-        }
-        SYSCALL_EXIT => {
-            current_task_info.borrow_mut().call_count[SYSCALL_EXIT] += 1;
-            sys_exit(args[0] as i32)
-        }
-        SYSCALL_YIELD => {
-            current_task_info.borrow_mut().call_count[SYSCALL_YIELD] += 1;
-            sys_yield()
-        }
-        SYSCALL_GET_TIME => {
-            current_task_info.borrow_mut().call_count[SYSCALL_GET_TIME] += 1;
-            sys_get_time(args[0] as *mut TimeVal, args[1])
-        }
-        SYSCALL_TASK_INFO => {
-            current_task_info.borrow_mut().call_count[SYSCALL_TASK_INFO] += 1;
-            sys_task_info(args[0] as *mut TaskInfo)
-        }
+    let ret = match syscall_id {
+        SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+        SYSCALL_EXIT => sys_exit(args[0] as i32),
+        SYSCALL_YIELD => sys_yield(),
+        SYSCALL_GET_TIME => sys_get_time(args[0] as *mut TimeVal, args[1]),
+        SYSCALL_TASK_INFO => sys_task_info(args[0] as *mut TaskInfo),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
-    }
+    };
+    ret
 }

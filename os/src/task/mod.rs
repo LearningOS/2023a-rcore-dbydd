@@ -14,6 +14,8 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use core::borrow::BorrowMut;
+
 use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
@@ -163,9 +165,28 @@ fn mark_current_exited() {
 }
 
 /// return current task control block in use, yeah it's silly
-pub fn get_current_task_info() -> TaskControlBlock {
-    let exclusive_access = &TASK_MANAGER.inner.exclusive_access();
+pub fn inc_call_count(sign: usize) {
+    let mut exclusive_access = TASK_MANAGER.inner.exclusive_access();
+    let current_task = exclusive_access.current_task;
+    exclusive_access.borrow_mut().tasks[current_task]
+        .borrow_mut()
+        .call_count[sign] += 1;
+}
+
+/// modify in mod.rs not work,hummmm...
+pub fn get_current_init_time() -> usize {
+    let exclusive_access = TASK_MANAGER.inner.exclusive_access();
     exclusive_access.tasks[exclusive_access.current_task]
+        .init_time
+        .clone()
+}
+
+/// modify in mod.rs not work,hummmm...
+pub fn get_current_call_count() -> [u32; MAX_SYSCALL_NUM] {
+    let exclusive_access = TASK_MANAGER.inner.exclusive_access();
+    exclusive_access.tasks[exclusive_access.current_task]
+        .call_count
+        .clone()
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.
