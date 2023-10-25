@@ -202,3 +202,10 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
 }
+
+/// return current task control block in use, yeah it's silly
+pub fn inc_call_count(sign: usize) {
+    let mut exclusive_access = TASK_MANAGER.inner.exclusive_access();
+    let current_task = exclusive_access.current_task;
+    exclusive_access.tasks[current_task].call_count[sign] += 1;
+}

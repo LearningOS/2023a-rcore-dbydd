@@ -171,3 +171,9 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     }
     v
 }
+
+pub fn get_actual_ptr(token: usize, ptr: *mut T) -> &'static mut T {
+    let from_token = PageTable::from_token(token);
+    let entry = from_token.translate(VirtPageNum(VirtAddr(ptr as usize))).unwarp();
+
+}

@@ -1,9 +1,17 @@
 //! Process management syscalls
+
 use crate::{
     config::MAX_SYSCALL_NUM,
-    task::{
-        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,
+    mm::translated_byte_buffer,
+    syscall::{
+        fs::sys_write, SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
+        SYSCALL_TASK_INFO, SYSCALL_YIELD,
     },
+    task::{
+        change_program_brk, current_user_token, exit_current_and_run_next, inc_call_count,
+        suspend_current_and_run_next, TaskStatus,
+    },
+    timer::get_time_us,
 };
 
 #[repr(C)]
@@ -27,6 +35,7 @@ pub struct TaskInfo {
 /// task exits and submit an exit code
 pub fn sys_exit(_exit_code: i32) -> ! {
     trace!("kernel: sys_exit");
+    inc_call_count(SYSCALL_EXIT);
     exit_current_and_run_next();
     panic!("Unreachable in sys_exit!");
 }
@@ -34,6 +43,7 @@ pub fn sys_exit(_exit_code: i32) -> ! {
 /// current task gives up resources for other tasks
 pub fn sys_yield() -> isize {
     trace!("kernel: sys_yield");
+    inc_call_count(SYSCALL_YIELD);
     suspend_current_and_run_next();
     0
 }
@@ -43,7 +53,16 @@ pub fn sys_yield() -> isize {
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    -1
+    let us = get_time_us();
+    inc_call_count(SYSCALL_GET_TIME);
+    from_token
+    // unsafe {
+    //     *ts = TimeVal {
+    //         sec: us / 1_000_000,
+    //         usec: us % 1_000_000,
+    //     };
+    // }
+    0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
@@ -51,23 +70,28 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
+    inc_call_count(SYSCALL_TASK_INFO);
+
     -1
 }
 
 // YOUR JOB: Implement mmap.
 pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
+    inc_call_count(SYSCALL_MMAP);
     -1
 }
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
     trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
+    inc_call_count(SYSCALL_MUNMAP);
     -1
 }
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {
     trace!("kernel: sys_sbrk");
+    inc_call_count(SYSCALL_SBRK);
     if let Some(old_brk) = change_program_brk(size) {
         old_brk as isize
     } else {
