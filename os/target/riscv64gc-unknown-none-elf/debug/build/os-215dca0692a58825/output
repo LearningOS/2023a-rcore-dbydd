@@ -1,0 +1,15 @@
+cargo:rerun-if-changed=../ci-user/user/src/
+cargo:rerun-if-changed=../ci-user/user/build/bin/
+app_0: ch2b_bad_address
+app_1: ch2b_bad_instructions
+app_2: ch2b_bad_register
+app_3: ch2b_hello_world
+app_4: ch2b_power_3
+app_5: ch2b_power_5
+app_6: ch2b_power_7
+app_7: ch3_sleep
+app_8: ch3_sleep1
+app_9: ch3_taskinfo
+app_10: ch3b_yield0
+app_11: ch3b_yield1
+app_12: ch3b_yield2

@@ -1,0 +1,6 @@
+{
+    "name": "rcore_exp_dev_env",
+    "build": {
+        "dockerfile": "Dockerfile"
+    }
+}
