@@ -89,13 +89,13 @@ impl PageTable {
     }
 
     pub fn interval_valid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
-        !((from.0..end.0)
+        (from.0..end.0)
             .into_iter()
             .map(|num| VirtPageNum::from(num))
             .any(|vpn| -> bool {
                 self.find_pte_create(vpn)
                     .is_some_and(|v| PageTableEntry::is_valid(&v))
-            }))
+            })
     }
 
     /// Find PageTableEntry by VirtPageNum, create a frame for a 4KB page table if not exist
