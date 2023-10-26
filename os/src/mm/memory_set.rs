@@ -413,10 +413,15 @@ pub fn remap_test() {
 
 pub fn vmem_alloc(_start: usize, _len: usize, _port: usize) -> isize {
     let mut exclusive_access = KERNEL_SPACE.exclusive_access();
+    let from = VirtAddr::from(_start).floor().into();
+    let to = VirtAddr::from(_start + _len).ceil().into();
+    if exclusive_access.page_table.interval_valid(from, to) {
+        return -1;
+    }
     //assert mapped
     exclusive_access.insert_framed_area(
-        VirtAddr::from(_start),
-        VirtAddr::from(_start + _len),
+        from.into(),
+        to.into(),
         MapPermission::from_bits((_port << 1 | 16) as u8).unwrap(),
     );
     return 0;
