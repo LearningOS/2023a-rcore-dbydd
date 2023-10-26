@@ -5,6 +5,7 @@ use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
 use crate::config::{MEMORY_END, MMIO, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::sync::UPSafeCell;
+use crate::task::op_current_memset;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -464,4 +465,62 @@ pub fn remap_test() {
         .unwrap()
         .executable(),);
     println!("remap_test passed!");
+}
+
+pub fn vmem_alloc(_start: usize, _len: usize, _port: usize) -> isize {
+    println!("in vmem alloc");
+    op_current_memset(|mem| {
+        let from = VirtAddr::from(_start);
+        let mut to = VirtAddr::from(_start + _len);
+
+        let from_vpn = from.floor();
+        let to_vpn = to.ceil();
+
+        to = VirtAddr::from(to_vpn);
+
+        unsafe {
+            if (*mem).page_table.interval_valid(from_vpn, to_vpn) {
+                return -1;
+            }
+            println!("after if");
+            //assert mapped
+            (*mem).insert_framed_area(
+                from.into(),
+                to.into(),
+                MapPermission::from_bits((_port << 1 | 16) as u8).unwrap(),
+            );
+            return 0;
+        }
+    })
+}
+
+pub fn vmem_free(_start: usize, _len: usize) -> isize {
+    println!("in vmem free");
+    op_current_memset(|mem| {
+        let from = VirtAddr::from(_start);
+        let from_vpn = from.floor();
+        let to_vpn = VirtAddr::from(_start + _len).ceil();
+
+        unsafe {
+            if (*mem).page_table.interval_invalid(from_vpn, to_vpn) {
+                return -1;
+            }
+
+            let mut res: isize = -1;
+
+            (*mem).page_table.interval_op(from_vpn, to_vpn, |num| {
+                if let Some(val) = (*mem)
+                    .areas
+                    .iter_mut()
+                    .find(|area| area.vpn_range.get_start() == num)
+                {
+                    val.unmap(&mut (*mem).page_table);
+                    res = 0;
+                }
+            });
+            //closure hell
+
+            return res;
+        }
+    })
 }

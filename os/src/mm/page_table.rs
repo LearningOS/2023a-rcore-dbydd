@@ -125,6 +125,42 @@ impl PageTable {
         }
         result
     }
+
+    ///holy duality
+    pub fn interval_valid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                self.find_pte_create(vpn)
+                    .is_some_and(|v| PageTableEntry::is_valid(&v))
+            })
+    }
+
+    ///holy duality
+    pub fn interval_invalid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                match self.find_pte_create(vpn) {
+                    Some(pte) => !PageTableEntry::is_valid(&pte),
+                    None => true,
+                }
+            })
+    }
+
+    ///interval_op
+    pub fn interval_op<T>(&mut self, from: VirtPageNum, end: VirtPageNum, op: T)
+    where
+        T: FnMut(VirtPageNum),
+    {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .for_each(op)
+    }
+
     /// set the map between virtual page number and physical page number
     #[allow(unused)]
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
@@ -181,7 +217,21 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
-/// Translate&Copy a ptr[u8] array end with `\0` to a `String` Vec through page table
+///get_actual_ptr
+pub fn get_actual_ptr<T>(token: usize, ptr: *mut T) -> &'static mut T {
+    let from_token = PageTable::from_token(token);
+    let from = VirtAddr::from(ptr as usize);
+    let actual_address: PhysAddr = from_token
+        .find_pte(from.clone().floor())
+        .map(|entry| {
+            let pta: PhysAddr = entry.ppn().into();
+            (pta.0 + from.page_offset()).into()
+        })
+        .unwrap();
+    actual_address.get_mut()
+}
+
+/// translated str
 pub fn translated_str(token: usize, ptr: *const u8) -> String {
     let page_table = PageTable::from_token(token);
     let mut string = String::new();

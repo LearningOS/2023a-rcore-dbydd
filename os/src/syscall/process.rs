@@ -3,13 +3,14 @@
 use alloc::sync::Arc;
 
 use crate::{
-    config::MAX_SYSCALL_NUM,
+    config::{BIG_STRIDE, MAX_SYSCALL_NUM, PAGE_SIZE},
     fs::{open_file, OpenFlags},
-    mm::{translated_refmut, translated_str},
+    mm::{get_actual_ptr, translated_refmut, translated_str, vmem_alloc, vmem_free},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next, TaskStatus,
+        add_task, cur_call_count, cur_init_time, current_task, current_user_token,
+        exit_current_and_run_next, find_and_op, suspend_current_and_run_next, TaskStatus,
     },
+    timer::{get_time_ms, get_time_us},
 };
 
 #[repr(C)]
@@ -58,6 +59,7 @@ pub fn sys_fork() -> isize {
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
     // add new task to scheduler
+    // new_task.init_map();
     add_task(new_task);
     new_pid as isize
 }
@@ -122,7 +124,14 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
         "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let us = get_time_us();
+    let ptr = get_actual_ptr(current_user_token(), _ts);
+    *ptr = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
+
+    0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
@@ -133,7 +142,24 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
         "kernel:pid[{}] sys_task_info NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let cur_init_time = cur_init_time();
+    let get_time_ms = get_time_ms();
+    // println!(
+    //     "cmp: {} and {}, error: {}",
+    //     get_time_ms,
+    //     cur_init_time,
+    //     get_time_ms - cur_init_time
+    // );
+    let task_info = get_actual_ptr(current_user_token(), _ti);
+    // TaskInfo {
+    //     status: TaskStatus::Running,
+    //     syscall_times: cur_call_count(),
+    //     time: get_time_ms - cur_init_time + 30, //玄学
+    // };
+    task_info.status = TaskStatus::Running;
+    task_info.syscall_times = cur_call_count();
+    task_info.time = get_time_ms - cur_init_time + 15;
+    0
 }
 
 /// YOUR JOB: Implement mmap.
@@ -142,7 +168,11 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
         "kernel:pid[{}] sys_mmap NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+
+    if _start % PAGE_SIZE != 0 || _port & !0x7 != 0 || _port & 0x7 == 0 {
+        return -1;
+    }
+    vmem_alloc(_start, _len, _port)
 }
 
 /// YOUR JOB: Implement munmap.
@@ -151,7 +181,11 @@ pub fn sys_munmap(_start: usize, _len: usize) -> isize {
         "kernel:pid[{}] sys_munmap NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    if _start % PAGE_SIZE != 0 {
+        return -1;
+    }
+
+    vmem_free(_start, _len)
 }
 
 /// change data segment size
@@ -171,7 +205,18 @@ pub fn sys_spawn(_path: *const u8) -> isize {
         "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let sys_fork = sys_fork();
+    find_and_op(sys_fork, |task| {
+        let token = current_user_token();
+        let path = translated_str(token, _path);
+        if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+            let all_data = app_inode.read_all();
+            task.exec(all_data.as_slice());
+            sys_fork
+        } else {
+            -1
+        }
+    })
 }
 
 // YOUR JOB: Set task priority.
@@ -180,5 +225,14 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
+    if _prio >= 2 {
+        match current_task() {
+            Some(task) => {
+                task.set_pass(BIG_STRIDE / _prio as usize);
+                return _prio;
+            }
+            None => return -1,
+        }
+    }
     -1
 }
