@@ -2,9 +2,9 @@
 
 use crate::{
     config::MAX_SYSCALL_NUM,
-    mm::translated_byte_buffer,
+    mm::{get_actual_ptr, PageTable},
     syscall::{
-        fs::sys_write, SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
+        SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
         SYSCALL_TASK_INFO, SYSCALL_YIELD,
     },
     task::{
@@ -55,7 +55,7 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
     let us = get_time_us();
     inc_call_count(SYSCALL_GET_TIME);
-    from_token
+    let ptr = get_actual_ptr(current_user_token(), _ts);
     // unsafe {
     //     *ts = TimeVal {
     //         sec: us / 1_000_000,
