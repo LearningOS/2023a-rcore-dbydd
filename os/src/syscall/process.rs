@@ -1,8 +1,8 @@
 //! Process management syscalls
 
 use crate::{
-    config::MAX_SYSCALL_NUM,
-    mm::get_actual_ptr,
+    config::{MAX_SYSCALL_NUM, PAGE_SIZE},
+    mm::{get_actual_ptr, vmem_alloc},
     syscall::{
         SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
         SYSCALL_TASK_INFO, SYSCALL_YIELD,
@@ -93,7 +93,11 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
 pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
     inc_call_count(SYSCALL_MMAP);
-    -1
+
+    if _start % PAGE_SIZE != 0 || _port & !0x7 != 0 || _port & 0x7 == 0 {
+        return -1;
+    }
+    vmem_alloc(_start, _len, _port)
 }
 
 // YOUR JOB: Implement munmap.

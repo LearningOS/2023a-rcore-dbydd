@@ -215,12 +215,12 @@ pub fn inc_call_count(sign: usize) {
 pub fn cur_call_count() -> [u32; config::MAX_SYSCALL_NUM] {
     let exclusive_access = TASK_MANAGER.inner.exclusive_access();
     let current_task = exclusive_access.current_task;
-    exclusive_access.tasks[current_task].call_count.clone()
+    exclusive_access.tasks[current_task].call_count
 }
 
 ///just copy from ch3
 pub fn cur_init_time() -> usize {
     let exclusive_access = TASK_MANAGER.inner.exclusive_access();
     let current_task = exclusive_access.current_task;
-    exclusive_access.tasks[current_task].init_time.clone()
+    exclusive_access.tasks[current_task].init_time
 }

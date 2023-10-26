@@ -410,3 +410,14 @@ pub fn remap_test() {
         .executable(),);
     println!("remap_test passed!");
 }
+
+pub fn vmem_alloc(_start: usize, _len: usize, _port: usize) -> isize {
+    let mut exclusive_access = KERNEL_SPACE.exclusive_access();
+    //assert mapped
+    exclusive_access.insert_framed_area(
+        VirtAddr::from(_start),
+        VirtAddr::from(_start + _len),
+        MapPermission::from_bits((_port << 1 | 16) as u8).unwrap(),
+    );
+    return 0;
+}
