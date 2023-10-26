@@ -172,6 +172,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
+/// convery virt address to phy address
 pub fn get_actual_ptr<T>(token: usize, ptr: *mut T) -> &'static mut T {
     let from_token = PageTable::from_token(token);
     let from = VirtAddr::from(ptr as usize);

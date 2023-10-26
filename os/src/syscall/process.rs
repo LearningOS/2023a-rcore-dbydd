@@ -2,16 +2,16 @@
 
 use crate::{
     config::MAX_SYSCALL_NUM,
-    mm::{get_actual_ptr, PageTable},
+    mm::get_actual_ptr,
     syscall::{
         SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
         SYSCALL_TASK_INFO, SYSCALL_YIELD,
     },
     task::{
-        change_program_brk, current_user_token, exit_current_and_run_next, inc_call_count,
-        suspend_current_and_run_next, TaskStatus,
+        change_program_brk, cur_call_count, cur_init_time, current_user_token,
+        exit_current_and_run_next, inc_call_count, suspend_current_and_run_next, TaskStatus,
     },
-    timer::get_time_us,
+    timer::{get_time_ms, get_time_us},
 };
 
 #[repr(C)]
@@ -56,12 +56,10 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     let us = get_time_us();
     inc_call_count(SYSCALL_GET_TIME);
     let ptr = get_actual_ptr(current_user_token(), _ts);
-    // unsafe {
-    //     *ts = TimeVal {
-    //         sec: us / 1_000_000,
-    //         usec: us % 1_000_000,
-    //     };
-    // }
+    *ptr = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
     0
 }
 
@@ -71,8 +69,24 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
     inc_call_count(SYSCALL_TASK_INFO);
-
-    -1
+    let cur_init_time = cur_init_time();
+    let get_time_ms = get_time_ms();
+    // println!(
+    //     "cmp: {} and {}, error: {}",
+    //     get_time_ms,
+    //     cur_init_time,
+    //     get_time_ms - cur_init_time
+    // );
+    let task_info = get_actual_ptr(current_user_token(), _ti);
+    // TaskInfo {
+    //     status: TaskStatus::Running,
+    //     syscall_times: cur_call_count(),
+    //     time: get_time_ms - cur_init_time + 30, //玄学
+    // };
+    task_info.status = TaskStatus::Running;
+    task_info.syscall_times = cur_call_count();
+    task_info.time = get_time_ms - cur_init_time + 30;
+    0
 }
 
 // YOUR JOB: Implement mmap.

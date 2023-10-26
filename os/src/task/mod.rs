@@ -14,6 +14,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::config;
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
@@ -208,4 +209,18 @@ pub fn inc_call_count(sign: usize) {
     let mut exclusive_access = TASK_MANAGER.inner.exclusive_access();
     let current_task = exclusive_access.current_task;
     exclusive_access.tasks[current_task].call_count[sign] += 1;
+}
+
+///just copy from ch3
+pub fn cur_call_count() -> [u32; config::MAX_SYSCALL_NUM] {
+    let exclusive_access = TASK_MANAGER.inner.exclusive_access();
+    let current_task = exclusive_access.current_task;
+    exclusive_access.tasks[current_task].call_count.clone()
+}
+
+///just copy from ch3
+pub fn cur_init_time() -> usize {
+    let exclusive_access = TASK_MANAGER.inner.exclusive_access();
+    let current_task = exclusive_access.current_task;
+    exclusive_access.tasks[current_task].init_time.clone()
 }
