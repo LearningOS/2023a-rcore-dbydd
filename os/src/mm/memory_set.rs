@@ -8,7 +8,7 @@ use crate::config::{
     KERNEL_STACK_SIZE, MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
 };
 use crate::sync::UPSafeCell;
-use crate::task::TaskManager;
+use crate::task::op_current_memset;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -412,29 +412,31 @@ pub fn remap_test() {
     println!("remap_test passed!");
 }
 
-// maybe move to TaskManager?
 pub fn vmem_alloc(_start: usize, _len: usize, _port: usize) -> isize {
     println!("in vmem alloc");
-    let mut exclusive_access = TaskManager.inner.;
-    let from = VirtAddr::from(_start);
-    let to = VirtAddr::from(_start + _len);
+        op_current_memset(|mem|{
 
-    let from_vpn = from.floor();
-    let to_vpn = to.ceil();
-
+        let from = VirtAddr::from(_start);
+        let mut to = VirtAddr::from(_start + _len);
+        
+        let from_vpn = from.floor();
+        let to_vpn = to.ceil();
+        
     to = VirtAddr::from(to_vpn);
-
-    if exclusive_access.tasks[exclusive_access].memory_set.interval_valid(from, to) {
-        println!("inside if");
-        //assert mapped
-        exclusive_access.insert_framed_area(
-            from.into(),
-            to.into(),
-            MapPermission::from_bits((_port << 1 | 16) as u8).unwrap(),
-        );
-        return 0
+    
+    unsafe{
+    if (*mem).page_table.interval_valid(from_vpn, to_vpn) {
+        return -1;
     }
-    return -1;
+    println!("inside if");
+    //assert mapped
+    (*mem).insert_framed_area(
+        from.into(),
+        to.into(),
+        MapPermission::from_bits((_port << 1 | 16) as u8).unwrap(),
+    );
+    return 0
+    }})
 }
 
 // fn assert_permission(perm:MapPermission)->bool{

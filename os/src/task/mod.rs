@@ -14,8 +14,11 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use core::cell::RefMut;
+
 use crate::config;
 use crate::loader::{get_app_data, get_num_app};
+use crate::mm::MemorySet;
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
@@ -42,11 +45,11 @@ pub struct TaskManager {
 }
 
 /// The task manager inner in 'UPSafeCell'
-struct TaskManagerInner {
+pub struct TaskManagerInner {
     /// task list
     tasks: Vec<TaskControlBlock>,
     /// id of current `Running` task
-    pub current_task: usize,
+    current_task: usize,
 }
 
 lazy_static! {
@@ -223,4 +226,11 @@ pub fn cur_init_time() -> usize {
     let exclusive_access = TASK_MANAGER.inner.exclusive_access();
     let current_task = exclusive_access.current_task;
     exclusive_access.tasks[current_task].init_time
+}
+
+pub fn op_current_memset<T>(mut fun: T)->isize where T:FnMut(*mut MemorySet)->isize{
+    let mut exclusive_access:RefMut<'static, TaskManagerInner> = TASK_MANAGER.inner.exclusive_access();
+    let current_task = exclusive_access.current_task;
+    let memory_set = &mut exclusive_access.tasks[current_task].memory_set as *mut MemorySet;
+    fun(memory_set)
 }
