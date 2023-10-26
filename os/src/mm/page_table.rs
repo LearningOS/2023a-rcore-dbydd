@@ -88,6 +88,7 @@ impl PageTable {
         }
     }
 
+    ///holy duality
     pub fn interval_valid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
         (from.0..end.0)
             .into_iter()
@@ -96,6 +97,29 @@ impl PageTable {
                 self.find_pte_create(vpn)
                     .is_some_and(|v| PageTableEntry::is_valid(&v))
             })
+    }
+
+    ///holy duality
+    pub fn interval_invalid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                match self.find_pte_create(vpn) {
+                    Some(pte) => !PageTableEntry::is_valid(&pte),
+                    None => true,
+                }
+            })
+    }
+
+    pub fn interval_op<T>(&mut self, from: VirtPageNum, end: VirtPageNum, op: T)
+    where
+        T: FnMut(VirtPageNum),
+    {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .for_each(op)
     }
 
     /// Find PageTableEntry by VirtPageNum, create a frame for a 4KB page table if not exist

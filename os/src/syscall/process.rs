@@ -2,7 +2,7 @@
 
 use crate::{
     config::{MAX_SYSCALL_NUM, PAGE_SIZE},
-    mm::{get_actual_ptr, vmem_alloc},
+    mm::{get_actual_ptr, vmem_alloc, vmem_free},
     syscall::{
         SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK,
         SYSCALL_TASK_INFO, SYSCALL_YIELD,
@@ -104,8 +104,14 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
     trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
     inc_call_count(SYSCALL_MUNMAP);
-    -1
+
+    if _start % PAGE_SIZE != 0 {
+        return -1;
+    }
+
+    vmem_free(_start, _len)
 }
+
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {
     trace!("kernel: sys_sbrk");
