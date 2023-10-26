@@ -1,5 +1,5 @@
 //! Implementation of [`PageTableEntry`] and [`PageTable`].
-use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -183,33 +183,45 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
-/// Translate&Copy a ptr[u8] array end with `\0` to a `String` Vec through page table
-pub fn translated_str(token: usize, ptr: *const u8) -> String {
-    let page_table = PageTable::from_token(token);
-    let mut string = String::new();
-    let mut va = ptr as usize;
-    loop {
-        let ch: u8 = *(page_table
+pub fn get_actual_ptr<T>(token: usize, ptr: *mut T) -> &'static mut T {
+    let from_token = PageTable::from_token(token);
+    let from = VirtAddr::from(ptr as usize);
+    let actual_address: PhysAddr = from_token
+        .find_pte(from.clone().floor())
+        .map(|entry| {
+            let pta: PhysAddr = entry.ppn().into();
+            (pta.0 + from.page_offset()).into()
+        })
+        .unwrap();
+    actual_address.get_mut()
+
+
+    pub fn translated_str(token: usize, ptr: *const u8) -> String {
+        let page_table = PageTable::from_token(token);
+        let mut string = String::new();
+        let mut va = ptr as usize;
+        loop {
+            let ch: u8 = *(page_table
+                .translate_va(VirtAddr::from(va))
+                .unwrap()
+                .get_mut());
+            if ch == 0 {
+                break;
+            } else {
+                string.push(ch as char);
+                va += 1;
+            }
+        }
+        string
+    }
+    /// Translate a ptr[u8] array through page table and return a mutable reference of T
+    pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
+        //trace!("into translated_refmut!");
+        let page_table = PageTable::from_token(token);
+        let va = ptr as usize;
+        //trace!("translated_refmut: before translate_va");
+        page_table
             .translate_va(VirtAddr::from(va))
             .unwrap()
-            .get_mut());
-        if ch == 0 {
-            break;
-        } else {
-            string.push(ch as char);
-            va += 1;
-        }
+            .get_mut()
     }
-    string
-}
-/// Translate a ptr[u8] array through page table and return a mutable reference of T
-pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
-    //trace!("into translated_refmut!");
-    let page_table = PageTable::from_token(token);
-    let va = ptr as usize;
-    //trace!("translated_refmut: before translate_va");
-    page_table
-        .translate_va(VirtAddr::from(va))
-        .unwrap()
-        .get_mut()
-}
