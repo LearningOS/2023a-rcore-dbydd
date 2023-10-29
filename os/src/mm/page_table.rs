@@ -1,5 +1,5 @@
 //! Implementation of [`PageTableEntry`] and [`PageTable`].
-use super::{frame_alloc, FrameTracker, PhysAddr, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -125,6 +125,42 @@ impl PageTable {
         }
         result
     }
+
+    ///holy duality
+    pub fn interval_valid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                self.find_pte_create(vpn)
+                    .is_some_and(|v| PageTableEntry::is_valid(&v))
+            })
+    }
+
+    ///holy duality
+    pub fn interval_invalid(&mut self, from: VirtPageNum, end: VirtPageNum) -> bool {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .any(|vpn| -> bool {
+                match self.find_pte_create(vpn) {
+                    Some(pte) => !PageTableEntry::is_valid(&pte),
+                    None => true,
+                }
+            })
+    }
+
+    ///interval_op
+    pub fn interval_op<T>(&mut self, from: VirtPageNum, end: VirtPageNum, op: T)
+    where
+        T: FnMut(VirtPageNum),
+    {
+        (from.0..end.0)
+            .into_iter()
+            .map(|num| VirtPageNum::from(num))
+            .for_each(op)
+    }
+
     /// set the map between virtual page number and physical page number
     #[allow(unused)]
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
@@ -183,6 +219,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
+///get_actual_ptr
 pub fn get_actual_ptr<T>(token: usize, ptr: *mut T) -> &'static mut T {
     let from_token = PageTable::from_token(token);
     let from = VirtAddr::from(ptr as usize);
@@ -194,34 +231,35 @@ pub fn get_actual_ptr<T>(token: usize, ptr: *mut T) -> &'static mut T {
         })
         .unwrap();
     actual_address.get_mut()
+}
 
-
-    pub fn translated_str(token: usize, ptr: *const u8) -> String {
-        let page_table = PageTable::from_token(token);
-        let mut string = String::new();
-        let mut va = ptr as usize;
-        loop {
-            let ch: u8 = *(page_table
-                .translate_va(VirtAddr::from(va))
-                .unwrap()
-                .get_mut());
-            if ch == 0 {
-                break;
-            } else {
-                string.push(ch as char);
-                va += 1;
-            }
-        }
-        string
-    }
-    /// Translate a ptr[u8] array through page table and return a mutable reference of T
-    pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
-        //trace!("into translated_refmut!");
-        let page_table = PageTable::from_token(token);
-        let va = ptr as usize;
-        //trace!("translated_refmut: before translate_va");
-        page_table
+/// translated str
+pub fn translated_str(token: usize, ptr: *const u8) -> String {
+    let page_table = PageTable::from_token(token);
+    let mut string = String::new();
+    let mut va = ptr as usize;
+    loop {
+        let ch: u8 = *(page_table
             .translate_va(VirtAddr::from(va))
             .unwrap()
-            .get_mut()
+            .get_mut());
+        if ch == 0 {
+            break;
+        } else {
+            string.push(ch as char);
+            va += 1;
+        }
     }
+    string
+}
+/// Translate a ptr[u8] array through page table and return a mutable reference of T
+pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
+    //trace!("into translated_refmut!");
+    let page_table = PageTable::from_token(token);
+    let va = ptr as usize;
+    //trace!("translated_refmut: before translate_va");
+    page_table
+        .translate_va(VirtAddr::from(va))
+        .unwrap()
+        .get_mut()
+}

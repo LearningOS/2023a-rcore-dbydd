@@ -6,7 +6,7 @@ use alloc::sync::Arc;
 use lazy_static::*;
 ///A array of `TaskControlBlock` that is thread-safe
 pub struct TaskManager {
-    ready_queue: VecDeque<Arc<TaskControlBlock>>,
+    pub ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 /// A simple FIFO scheduler.
@@ -31,6 +31,18 @@ lazy_static! {
     /// TASK_MANAGER instance through lazy_static!
     pub static ref TASK_MANAGER: UPSafeCell<TaskManager> =
         unsafe { UPSafeCell::new(TaskManager::new()) };
+}
+
+pub fn find_and_op<T>(pid: isize, fun: T) -> isize
+where
+    T: Fn(&Arc<TaskControlBlock>) -> isize,
+{
+    fun(TASK_MANAGER
+        .exclusive_access()
+        .ready_queue
+        .iter()
+        .find(|t| t.getpid() as isize == pid)
+        .unwrap())
 }
 
 /// Add process to ready queue

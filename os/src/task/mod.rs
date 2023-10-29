@@ -21,7 +21,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::loader::get_app_data_by_name;
+use crate::{config, loader::get_app_data_by_name, mm::MemorySet};
 use alloc::sync::Arc;
 use lazy_static::*;
 pub use manager::{fetch_task, TaskManager};
@@ -30,11 +30,13 @@ pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 pub use id::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
-pub use manager::add_task;
+pub use manager::{add_task, find_and_op};
 pub use processor::{
     current_task, current_trap_cx, current_user_token, run_tasks, schedule, take_current_task,
     Processor,
 };
+
+use self::processor::PROCESSOR;
 /// Suspend the current 'Running' task and run the next task in task list.
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
@@ -114,4 +116,25 @@ lazy_static! {
 ///Add init process to the manager
 pub fn add_initproc() {
     add_task(INITPROC.clone());
+}
+///just copy from ch3
+pub fn cur_call_count() -> [u32; config::MAX_SYSCALL_NUM] {
+    current_task().unwrap().call_count
+}
+
+///just copy from ch3
+pub fn cur_init_time() -> usize {
+    current_task().unwrap().init_time
+}
+
+///migrated
+pub fn op_current_memset<T>(mut fun: T) -> isize
+where
+    T: FnMut(*mut MemorySet) -> isize,
+{
+    let borrow_mut = PROCESSOR.inner.borrow_mut();
+    let binding = borrow_mut.current().unwrap();
+    let mut current_task = binding.inner_exclusive_access();
+    // let memory_set = &mut current_task.memory_set as *mut MemorySet;
+    fun(&mut current_task.memory_set)
 }

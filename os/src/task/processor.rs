@@ -4,6 +4,8 @@
 //! the current running state of CPU is recorded,
 //! and the replacement and transfer of control flow of different applications are executed.
 
+use core::borrow::BorrowMut;
+
 use super::__switch;
 use super::{fetch_task, TaskStatus};
 use super::{TaskContext, TaskControlBlock};
@@ -85,6 +87,14 @@ pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
 pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
+
+///get_task
+// pub fn op_spec_task<T>(id: isize, fun: T) -> isize
+// where
+//     T: Fn(&Arc<TaskControlBlock>) -> isize,
+// {
+//     find_and_op(id, fun)
+// }
 
 /// Get the current user token(addr of page table)
 pub fn current_user_token() -> usize {
