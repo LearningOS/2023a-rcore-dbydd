@@ -1,8 +1,9 @@
 //! Process management syscalls
+
 use alloc::sync::Arc;
 
 use crate::{
-    config::{MAX_SYSCALL_NUM, PAGE_SIZE},
+    config::{BIG_STRIDE, MAX_SYSCALL_NUM, PAGE_SIZE},
     loader::get_app_data_by_name,
     mm::{get_actual_ptr, translated_refmut, translated_str, vmem_alloc, vmem_free},
     task::{
@@ -60,6 +61,7 @@ pub fn sys_fork() -> isize {
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
     // add new task to scheduler
+    new_task.init_map();
     add_task(new_task);
     new_pid as isize
 }
@@ -227,6 +229,14 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    if _prio >= 2 {}
+    if _prio >= 2 {
+        match current_task() {
+            Some(task) => {
+                task.set_pass(BIG_STRIDE / _prio);
+                return 0;
+            }
+            None => return -1,
+        }
+    }
     -1
 }

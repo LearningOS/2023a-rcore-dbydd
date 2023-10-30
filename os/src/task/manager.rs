@@ -1,12 +1,15 @@
 //!Implementation of [`TaskManager`]
+
 use super::TaskControlBlock;
 use crate::sync::UPSafeCell;
-use alloc::collections::VecDeque;
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use lazy_static::*;
+
 ///A array of `TaskControlBlock` that is thread-safe
 pub struct TaskManager {
-    pub ready_queue: VecDeque<Arc<TaskControlBlock>>,
+    pub task_vec: VecDeque<Arc<TaskControlBlock>>,
+    pub stride_map: BTreeMap<usize, (isize, isize)>,
 }
 
 /// A simple FIFO scheduler.
@@ -14,16 +17,23 @@ impl TaskManager {
     ///Creat an empty TaskManager
     pub fn new() -> Self {
         Self {
-            ready_queue: VecDeque::new(),
+            task_vec: VecDeque::new(),
+            stride_map: BTreeMap::new(),
         }
     }
     /// Add process back to ready queue
     pub fn add(&mut self, task: Arc<TaskControlBlock>) {
-        self.ready_queue.push_back(task);
+        self.task_vec.push_back(task);
     }
     /// Take a process out of the ready queue
-    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.ready_queue.pop_front()
+    pub fn fetch_min(&mut self) -> Option<Arc<TaskControlBlock>> {
+        match (&self.stride_map)
+            .into_iter()
+            .min_by(|l, r| l.1 .0.cmp(&r.1 .0))
+        {
+            Some(min) => self.task_vec.remove(min.0.clone()),
+            None => None,
+        }
     }
 }
 
@@ -39,7 +49,7 @@ where
 {
     fun(TASK_MANAGER
         .exclusive_access()
-        .ready_queue
+        .task_vec
         .iter()
         .find(|t| t.getpid() as isize == pid)
         .unwrap())
@@ -54,5 +64,5 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
 /// Take a process out of the ready queue
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     //trace!("kernel: TaskManager::fetch_task");
-    TASK_MANAGER.exclusive_access().fetch()
+    TASK_MANAGER.exclusive_access().fetch_min()
 }

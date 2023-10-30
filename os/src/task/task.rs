@@ -1,4 +1,5 @@
 //! Types related to task management & Functions for completely changing TCB
+use super::manager::TASK_MANAGER;
 use super::TaskContext;
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 use crate::config::{MAX_SYSCALL_NUM, TRAP_CONTEXT_BASE};
@@ -9,6 +10,7 @@ use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use core::cell::RefMut;
+use core::usize;
 
 /// Task control block structure
 ///
@@ -28,11 +30,6 @@ pub struct TaskControlBlock {
     pub init_time: usize,
     ///+1 each call
     pub call_count: [u32; MAX_SYSCALL_NUM],
-    ///stride
-    pub cur_stride: usize,
-
-    ///pass
-    pub pass: usize,
 }
 
 impl TaskControlBlock {
@@ -46,9 +43,21 @@ impl TaskControlBlock {
         inner.memory_set.token()
     }
 
-    pub fn inc_stride(&mut self) {
-        self.cur_stride += self.pass;
-        //todo move this to other side
+    pub fn inc_stride(&self) {
+        let mut map = TASK_MANAGER.exclusive_access().stride_map[&self.pid.0];
+        map.0 += map.1;
+    }
+
+    pub fn init_map(&self) {
+        TASK_MANAGER
+            .exclusive_access()
+            .stride_map
+            .insert(self.pid.0, (0, 16));
+    }
+
+    pub fn set_pass(&self, pass: isize) {
+        let mut map = TASK_MANAGER.exclusive_access().stride_map[&self.pid.0];
+        map.1 = pass;
     }
 }
 
@@ -138,8 +147,6 @@ impl TaskControlBlock {
             },
             init_time: get_time_ms(),
             call_count: [0; MAX_SYSCALL_NUM],
-            cur_stride: 0,
-            pass: 16,
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
@@ -268,9 +275,6 @@ impl TaskControlBlock {
             },
             init_time: get_time_ms(),
             call_count: [0; MAX_SYSCALL_NUM],
-            cur_stride: 0,
-            //really?
-            pass: self.pass,
         });
         // add child
         parent_inner.children.push(task_control_block.clone());
