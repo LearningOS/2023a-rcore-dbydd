@@ -233,7 +233,7 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         match current_task() {
             Some(task) => {
                 task.set_pass(BIG_STRIDE / _prio as usize);
-                return 0;
+                return _prio;
             }
             None => return -1,
         }
