@@ -9,7 +9,25 @@
 ## 问答题: stride 算法深入
   * 不是哦，由于只有8位，因此 (stride+pass) % (2^8-1) = (250+10) % 255 = 5,于是p2又要执行很长一段时间...
   * 不考虑溢出的情况下，这是显然的，特别的，考虑边界条件，当p1.prio=2,p2.prio = n > 2时，pass1/pass2 = (BigStride / 2 )/ (BigStride / n) = n/2 > 1,也就是说此时始终会在执行一次pass1后执行pass2（口胡）
-  * 似乎贴代码扣分，那么口头说一下实现思路罢（其实是懒），只要取模就好啦取模。result:= self % (BigStride / 2) < other % (BigStride / 2)
+  * 
+  ```rust
+    use core::cmp::Ordering;
+
+    struct Stride(u64);
+
+    impl PartialOrd for Stride {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            (self % (BIG_STRIDE / 2)).cmp(other % (BIG_STRIDE / 2))
+        }
+    }
+
+    impl PartialEq for Stride {
+        fn eq(&self, other: &Self) -> bool {
+            (self % (BIG_STRIDE / 2)) < (other % (BIG_STRIDE / 2))
+        }
+    } 
+  ```
+  
 ## 荣誉准则
 
 1. 在完成本次实验的过程（含此前学习的过程）中，我曾分别与 **以下各位** 就（与本次实验相关的）以下方面做过交流，还在代码中对应的位置以注释形式记录了具体的交流对象及内容：
