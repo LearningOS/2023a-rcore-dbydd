@@ -61,7 +61,7 @@ pub fn sys_fork() -> isize {
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
     // add new task to scheduler
-    new_task.init_map();
+    // new_task.init_map();
     add_task(new_task);
     new_pid as isize
 }
@@ -232,7 +232,7 @@ pub fn sys_set_priority(_prio: isize) -> isize {
     if _prio >= 2 {
         match current_task() {
             Some(task) => {
-                task.set_pass(BIG_STRIDE / _prio);
+                task.set_pass(BIG_STRIDE / _prio as usize);
                 return 0;
             }
             None => return -1,

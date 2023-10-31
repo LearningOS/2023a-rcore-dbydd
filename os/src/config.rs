@@ -24,4 +24,4 @@ pub const CLOCK_FREQ: usize = 12500000;
 /// the physical memory end
 pub const MEMORY_END: usize = 0x88000000;
 
-pub const BIG_STRIDE: isize = 114514;
+pub const BIG_STRIDE: usize = usize::MAX;

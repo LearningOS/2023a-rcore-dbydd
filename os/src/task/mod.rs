@@ -61,6 +61,7 @@ pub const IDLE_PID: usize = 0;
 
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
+    println!("exit_current_and_run_next");
     // take from Processor
     let task = take_current_task().unwrap();
 

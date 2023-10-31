@@ -10,7 +10,6 @@ use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use core::cell::RefMut;
-use core::usize;
 
 /// Task control block structure
 ///
@@ -44,18 +43,27 @@ impl TaskControlBlock {
     }
 
     pub fn inc_stride(&self) {
-        let mut map = TASK_MANAGER.exclusive_access().stride_map[&self.pid.0];
-        map.0 += map.1;
+        let mut exclusive_access = TASK_MANAGER.exclusive_access();
+        exclusive_access.check_map_manager(self.pid.0);
+        let entry = exclusive_access.stride_map[&self.pid.0];
+        exclusive_access
+            .stride_map
+            .insert(self.pid.0, (entry.0 + entry.1, entry.1));
     }
 
-    pub fn init_map(&self) {
+    pub fn get_stride(&self) -> usize {
+        let mut exclusive_access = TASK_MANAGER.exclusive_access();
+        exclusive_access.check_map_manager(self.pid.0);
+        exclusive_access.stride_map[&self.pid.0].0
+    }
+
+    pub fn check_map_task(&self) {
         TASK_MANAGER
             .exclusive_access()
-            .stride_map
-            .insert(self.pid.0, (0, 16));
+            .check_map_manager(self.pid.0);
     }
 
-    pub fn set_pass(&self, pass: isize) {
+    pub fn set_pass(&self, pass: usize) {
         let mut map = TASK_MANAGER.exclusive_access().stride_map[&self.pid.0];
         map.1 = pass;
     }
