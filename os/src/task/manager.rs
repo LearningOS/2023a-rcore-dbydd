@@ -80,7 +80,7 @@ where
 /// Add process to ready queue
 pub fn add_task(task: Arc<TaskControlBlock>) {
     trace!("kernel: TaskManager::add_task");
-    println!("added {}", task.pid.0);
+    // println!("added {}", task.pid.0);
     let mut exclusive_access = TASK_MANAGER.exclusive_access();
     exclusive_access.check_map_manager(task.getpid());
     exclusive_access.add(task);
