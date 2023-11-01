@@ -210,17 +210,29 @@ pub fn sys_spawn(_path: *const u8) -> isize {
         "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    let sys_fork = sys_fork();
-    find_and_op(sys_fork, |task| {
-        let token = current_user_token();
-        let path = translated_str(token, _path);
-        if let Some(data) = get_app_data_by_name(path.as_str()) {
-            task.exec(data);
-            sys_fork
-        } else {
-            -1
-        }
-    })
+    let current_task = current_task().unwrap();
+    let mut current_inner = current_task.inner_exclusive_access();
+    // let task = current_task.fork();
+    // let new_pid = task.pid.0;
+    // let trap_cx = task.inner_exclusive_access().get_trap_cx();
+    // trap_cx.x[10] = 0;
+    // let token = current_user_token();
+    let path = translated_str(current_inner.get_user_token(), _path);
+    if let Some(data) = get_app_data_by_name(path.as_str()) {
+        let task = TaskControlBlock::new(data);
+        // task.exec(data);
+        // let from_elf = MemorySet::from_elf(data);
+        // task.inner_exclusive_access().memory_set = from_elf.0;
+        let pid = task.pid.0;
+
+        let arc_task = Arc::new(task);
+
+        current_inner.children.push(arc_task.clone());
+        add_task(arc_task);
+        pid as isize
+    } else {
+        -1
+    }
 }
 
 // YOUR JOB: Set task priority.
